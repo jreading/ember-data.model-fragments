@@ -3,7 +3,7 @@
  * @copyright Copyright 2014 Lytics Inc. and contributors
  * @license   Licensed under MIT license
  *            See https://raw.githubusercontent.com/lytics/ember-data.model-fragments/master/LICENSE
- * @version   0.2.7
+ * @version   0.2.8
  */
 (function() {
 var define, requireModule, require, requirejs;
@@ -77,6 +77,7 @@ define("core-model",
     var protoProps = [
       '_setup',
       '_unhandledEvent',
+      '_createSnapshot',
       'send',
       'transitionTo',
       'isEmpty',
@@ -875,6 +876,32 @@ define("fragments/ext",
       },
 
       /**
+        Override parent method to serialize fragment attributes before they are
+        passed to the `DS.Model#serialize`. This is in keeping with the notion that
+        model fragments are truly just nested JSON, and therefore should be treated
+        just as primitive attributes are treated.
+
+        @method _createSnapshot
+        @private
+      */
+      _createSnapshot: function() {
+        var snapshot = this._super.apply(this, arguments);
+        var attrs = snapshot._attributes;
+
+        Ember.keys(attrs).forEach(function(key) {
+          var attr = attrs[key];
+
+          // It's safe to assume that if the attribute has a `serialize` method,
+          // it is a model fragment or fragment array
+          if (attr && typeof attr.serialize === 'function') {
+            attrs[key] = attr.serialize();
+          }
+        });
+
+        return snapshot;
+      },
+
+      /**
         If the adapter did not return a hash in response to a commit,
         merge the changed attributes and relationships into the existing
         saved data and notify all fragments of the commit.
@@ -1440,7 +1467,9 @@ define("fragments/transform",
       },
 
       serialize: function(fragment) {
-        return fragment ? fragment.serialize() : null;
+        // Because fragment properties are serialized when creating the owner
+        // record's snapshot, it's already JSON at this point
+        return fragment;
       }
     });
 
@@ -1498,7 +1527,7 @@ define("main",
     });
 
     if (Ember.libraries) {
-      Ember.libraries.register('Model Fragments', '0.2.7');
+      Ember.libraries.register('Model Fragments', '0.2.8');
     }
 
     // Something must be exported...
