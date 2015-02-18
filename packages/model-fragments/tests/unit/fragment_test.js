@@ -157,3 +157,65 @@ test("fragment properties are serialized as normal attributes using their own se
     equal(serialized.name, 'Mad King', "serialization uses result from `fragment#serialize`");
   }));
 });
+
+test("fragment properties are serialized as normal attributes on the snapshot", function() {
+  expect(6);
+
+  // TODO: this is necessary to set `typeKey` and prevent `store#serializerFor` from blowing up
+  store.modelFor('person');
+
+  var House = DS.ModelFragment.extend({
+    name   : DS.attr("string"),
+    region : DS.attr("string"),
+    exiled : DS.attr("boolean")
+  });
+
+  Person.reopen({
+    houses   : DS.hasManyFragments(House),
+    children : DS.hasManyFragments()
+  });
+
+  var person = {
+    id: 1,
+    name: {
+      first : "Catelyn",
+      last  : "Stark"
+    },
+    houses: [
+      {
+        name   : "Tully",
+        region : "Riverlands",
+        exiled : true
+      },
+      {
+        name   : "Stark",
+        region : "North",
+        exiled : true
+      }
+    ],
+    children: [
+      'Robb',
+      'Sansa',
+      'Arya',
+      'Brandon',
+      'Rickon'
+    ]
+  };
+
+  store.push('person', person);
+
+  env.container.register('serializer:person', DS.JSONSerializer.extend({
+    serialize: function(snapshot) {
+      ok(!(name instanceof DS.ModelFragment), "`hasOneFragment` attribute is not a model fragment");
+      deepEqual(snapshot.attr('name'), person.name, "`hasOneFragment` attribute is serialized");
+      ok(!(name instanceof DS.FragmentArray), "`hasManyFragments` attribute is not a fragment array");
+      deepEqual(snapshot.attr('houses'), person.houses, "`hasManyFragments` attribute is serialized");
+      ok(!(name instanceof Ember.ArrayProxy), "`hasManyFragments` attribute is not an array proxy");
+      deepEqual(snapshot.attr('children'), person.children, "`hasManyFragments` attribute is serialized");
+    }
+  }));
+
+  return store.find('person', 1).then(function(person) {
+    person.serialize();
+  });
+});

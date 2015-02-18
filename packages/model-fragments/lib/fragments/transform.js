@@ -20,7 +20,9 @@ var FragmentTransform = Transform.extend({
   },
 
   serialize: function(fragment) {
-    return fragment ? fragment.serialize() : null;
+    // Because fragment properties are serialized when creating the owner
+    // record's snapshot, it's already JSON at this point
+    return fragment;
   }
 });
 
